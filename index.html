@@ -563,8 +563,8 @@
                 // alert(JSON.stringify(response));
                 console.log(response.data);
                 console.log(response);
-                alert("NFT 발행이 완료되었습니다!");
                 alert("트랜잭션 해쉬값 : " + response["data"]["transactionHash"])
+                alert("NFT 발행이 완료되었습니다!");
                 window.location.href = "https://baobab.scope.klaytn.com/tx/" + response["data"]["transactionHash"]+ "?tabId=nftTransfer"
             }).catch(function (error) {
                 console.error(error);
