@@ -29,7 +29,7 @@
 </head>
 
 <body>
-    <!-- <script src="script.js" defer></script> -->
+    <script src="test.js" defer></script>
     <nav class="p-3 container navbar navbar-expand-lg navbar-light">
         <a class="navbar-brand" href="#" onclick="window.location.reload();">AI 소고기 등급 판별기</a>
         <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,8 +56,8 @@
         </div>
     </nav>
     <section class="section">
-        <h1 class="title" onclick="test2();">AI 소고기 등급 판별기</h1>
-        <h2 class="subtitle">소고기 등급을 판별하고 NFT 인증서를 발급받으세요!</h2>
+        <h1 class="title" onclick="mint1();">AI 소고기 등급 판별기</h1>
+        <h2 class="subtitle" onclick="test();">소고기 등급을 판별하고 NFT 인증서를 발급받으세요!</h2>
         <h2 class="sr-only">나의 소고기는 몇등급일까? 나의 소고기 등급 찾기를 해보세요!</h2>
         <h3 class="sr-only">수만장의 소고기 사진 데이터로 학습한 인공지능이 카메라를 통해 나의 소고기 등급을 판별하고 판별된 정보를 NFT에 담아 인증서를 발급해줍니다.</h3>
         <h4 class="sr-only">본 서비스는 Google의 인공지능 teachable machine 2.0과 GroundX의 Klaytn Network를 활용하였습니다.</h4>
@@ -112,7 +112,7 @@
                 <button type="button p-2" class="try-again-btn" onclick="window.location.reload();">
                     <span class="try-again-text">다른 사진으로 재시도</span>
                 </button>
-                <button type="button p-2" class="nft-btn" onclick="test();">
+                <button type="button p-2" class="nft-btn" onclick="autoMint();">
                     <span class="try-again-text">NFT 발급하기</span>
                 </button>
             </div>
@@ -147,7 +147,6 @@
                 init().then(function() {
                     console.log("hello");
                     predict();
-                    $('#loading').hide();
                 });
             } else {
                 removeUpload();
@@ -193,11 +192,70 @@
                 labelContainer.appendChild(element);
             }
         }
+        function urltoFile(url, filename, mimeType){
+            mimeType = mimeType || (url.match(/^data:([^;]+);/)||'')[1];
+            return (fetch(url)
+                .then(function(res){return res.arrayBuffer();})
+                .then(function(buf){return new File([buf], filename, {type:mimeType});})
+            );
+        }
+        function dataURLtoFile(dataurl, filename) {
+            var arr = dataurl.split(','), mime = arr[0].match(/:(.*?);/)[1],
+                bstr = atob(arr[1]), n = bstr.length, u8arr = new Uint8Array(n);
+            while(n--){
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new File([u8arr], filename, {type:mime});
+        }
         async function predict() {
+            const img = $('.file-upload-image').attr('src').split('data:image/jpeg;base64,')[1];
+            const data = {"img": img}
+            //const resp = await axios.post('http://127.0.0.1:500
             var image = document.getElementById("face-image")
-            const prediction = await model.predict(image, false);
+            console.log(image)
+
+            var beef_img = $('.file-upload-image').attr('src');
+            var file = dataURLtoFile(beef_img, 'beef_img1.png');
+            console.log(file);
+
+    
+            urltoFile(beef_img, 'beef_img.png')
+            .then(function(file){
+                console.log(file);
+            })
+            // let asset_body = {"file" : file}
+            // const asset_options = {
+            //     method: 'POST',
+            //     headers: {
+            //         'Content-Type': 'multipart/form-data',
+            //         'x-chain-id': '1001',
+            //         Authorization: 'Basic S0FTS0wyQlMxRDFJMUczREowRTdFUDhEOmptd2hlNkZrcXZLLWxheTUxWHJ5QktJVFJPaXE5MUtyRE9OMjFxR0Q='
+            //     },
+            //     body: asset_body
+            // };
+
+            // fetch('https://metadata-api.klaytnapi.com/v1/metadata/asset', asset_options)
+            // .then(response => response.json())
+            // .then(response => console.log(response))
+            // .catch(err => console.error(err));
+
+
+
+
+
+
+            //teachable machine model 남겨 놓기
+            const prediction1 = await model.predict(image, false);
+            //Flask 서버에 있는 AI 모델을 통한 소고기 등급 호출 및 결과 리턴 받기
+            const resp = await axios.post('https://beef-fastapi-ai.herokuapp.com/predict_test',data).then(function (response) {
+            const prediction = response.data;
             prediction.sort((a, b) => parseFloat(b.probability) - parseFloat(a.probability));
             console.log(prediction[0].className);
+            const fat_data = {"img": img, "grade": prediction[0].className}
+            axios.post('https://beef-fastapi-ai.herokuapp.com/fat_test',fat_data).then(function (response) {
+                localStorage.setItem('fat', String(response.data.toFixed(3)) + "%");
+                document.getElementById("fat").innerHTML += String(response.data.toFixed(3)) + "%";
+                console.log(response.data);});
             var resultTitle, resultExplain, resultCeleb;
             var probabilityList = [];
             var zeroList = [];
@@ -238,7 +296,7 @@
             zeroList.sort((a, b) => a.order - b.order);
             probabilityList.push(...zeroList);
             // spred operator(...)을 활용하여 probabilityList뒤에 zeroList의 원소 붙여 넣기
-            console.log(probabilityList);
+            console.log(probabilityList, String(probabilityList));
             //토글이 체크 되었을 때, 즉 남자일때
             if (document.getElementById("gender").checked) {
                 switch (probabilityList[0].className) {
@@ -276,28 +334,28 @@
                         break;
                     case "twoplus":
                         resultTitle = "1++등급"
-                        resultExplain = "1++등급에 대한 설명이 들어갈 부분 (기준, 가격, 등급의 특징 등등)"
-                        resultCeleb = "1++등급에 대한 기준 요약"
+                        resultExplain = "탄력성과 지방의 질이 매우 좋으며 수분이 알맞게 침출되고 결이 매우 곱고 섬세하며 고기의 광택이 매우 좋은 것"
+                        resultCeleb = "소고기 근내지방도 : "
                         break;
                     case "oneplus":
                         resultTitle = "1+등급"
-                        resultExplain = "1+등급에 대한 설명이 들어갈 부분 (기준, 가격, 등급의 특징 등등)"
-                        resultCeleb = "1+등급에 대한 기준 요약"
+                        resultExplain = "탄력성과 지방의 질이 좋으며 수분이 다소 알맞게 침출되고 결이 곱고 고기의 광택이 좋은 것"
+                        resultCeleb = "소고기 근내지방도 : "
                         break;
                     case "one":
                         resultTitle = "1등급"
-                        resultExplain = "1등급에 대한 설명이 들어갈 부분 (기준, 가격, 등급의 특징 등등)"
-                        resultCeleb = "1등급에 대한 기준 요약"
+                        resultExplain = "탄력성과 지방의 질이 보통이며 수분의 침출정도가 약간 많거나 적고 결과 고기의 광택이 보통인 것"
+                        resultCeleb = "소고기 근내지방도 : "
                         break;
                     case "two":
                         resultTitle = "2등급"
-                        resultExplain = "2등급에 대한 설명이 들어갈 부분 (기준, 가격, 등급의 특징 등등)"
-                        resultCeleb = "2등급에 대한 기준 요약"
+                        resultExplain = "탄력성과 지방의 질이 보통에 비해 좋지 않은 수준이며 고기의 표면이 건조하거나  수분이 많이 침출되고 결과 광택이 보통에 비해 좋지 않은 것"
+                        resultCeleb = "소고기 근내지방도 : "
                         break;
                     case "three":
                         resultTitle = "3등급"
-                        resultExplain = "3등급에 대한 설명이 들어갈 부분 (기준, 가격, 등급의 특징 등등)"
-                        resultCeleb = "3등급에 대한 기준 요약"
+                        resultExplain = "탄력성과 지방의 질이 나쁘며 고기의 표면이 매우 건조하거나 수분이 아주 많이 침출되고 결과 광택이 매우 좋지 않은 것"
+                        resultCeleb = "소고기 근내지방도 : "
                         break;            
                     default:
                         resultTitle = "섹시한 밀당고수 여우상"
@@ -305,10 +363,11 @@
                         resultCeleb = "여우상 연예인: 경리(나인뮤지스), 예지(있지), 한혜진(모델), 헤이즈, 지연(티아라)"
                 }
             }
+            //소고기 설명 reference https://www.law.go.kr/LSW/flDownload.do?flSeq=112276611&flNm=%5B%EB%B3%84%ED%91%9C+1%5D+%EC%86%8C%EB%8F%84%EC%B2%B4+%EC%A1%B0%EC%A7%81%EA%B0%90+%EA%B5%AC%EB%B6%84%EA%B8%B0%EC%A4%80%28%EC%A0%9C5%EC%A1%B0%EC%A0%9C2%ED%95%AD%EC%A0%9C4%ED%98%B8+%EA%B4%80%EB%A0%A8%29
             //grade 값을 가져와 NFT에 저장하기 위해 'meat-grade'라는 id를 부여했다.
             var title = "<div class='" + probabilityList[0].className + "-meat-title' id='meat-grade'>" + resultTitle + "</div>"
             var explain = "<div class='animal-explain pt-2'>" + resultExplain + "</div>"
-            var celeb = "<div class='" + probabilityList[0].className + "-meat-celeb pt-2 pb-2'>" + resultCeleb + "</div>"
+            var celeb = "<div id ='fat' class='" + probabilityList[0].className + "-meat-celeb pt-2 pb-2'>" + resultCeleb + "</div>"
             $('.result-message').html(title + explain + celeb);
             var barWidth;
             for (let i = 0; i < maxPredictions; i++) {
@@ -364,16 +423,28 @@
                 var bar = "<div class='bar-container position-relative container'><div class='" + probabilityList[i].className + "-box'></div><div class='d-flex justify-content-center align-items-center " + probabilityList[i].className + "-bar' style='width: " + barWidth + "'><span class='d-block percent-text'>" + Math.round(probabilityList[i].probability.toFixed(2) * 100) + "%</span></div></div>"
                 labelContainer.childNodes[i].innerHTML = label + bar;
             }
+            })
+            .catch(function (error) {
+                alert(error);
+            });
+            setMetadata();
+            $('#loading').hide();
         }
-        async function test(){
+        async function mint(){
             $('#nft-loading').show();
             const img = $('.file-upload-image').attr('src');
             const grade = $('#meat-grade').text();
             const data = {"grade" : grade,"img": img}
             //https://xiubindev.tistory.com/115 참고 CORS 문제 해결 방법
             //const resp = await axios.post('https://cors-anywhere.herokuapp.com/http://54.180.145.244:58282/', data)
-            const resp = await axios.post('https://beef-flask.herokuapp.com/nftMint', data)
-            //const resp = await axios.post('http://127.0.0.1:5000//nftMint', data)
+            console.log("data", data);
+            // axios.post('https://beef-fastapi-ai.herokuapp.com/predict',data)
+            const resp = await axios.post('https://beef-klaytn-api-ika9810.vercel.app/nftMint', data)
+            
+            //const resp = await axios.post('https://beef-fastapi-ai.herokuapp.com/nftMint', data)
+            //const resp = await axios.post('http://127.0.0.1:5000/nftMint', data)
+            //const resp = await axios.post('https://vercelfast.vercel.app/nftMint', data)
+            
             .then(function (response) {
                 // NFT 발급시 나타나는 로딩중 요소를 숨긴다. 신기하게 alert 전에 넣어놨지만 소용이 없었다(hide 적용 x) 페이지가 이동하기 전에는 hide가 잘 적용된다
                 $('#nft-loading').hide();
@@ -382,17 +453,131 @@
                 console.log(response);
                 alert("NFT 발행이 완료되었습니다!");
                 //klaytn baobab scope 사이트로 이동
-                window.location.href = "https://baobab.scope.klaytn.com/tx/" + response["data"]["transactionHash"]+ "?tabId=nftTransfer"
+                //alert("트랜잭션 해쉬값 : " + response["data"]["transactionHash"])
+                //window.location.href = "https://baobab.scope.klaytn.com/tx/" + response["data"]["transactionHash"]+ "?tabId=nftTransfer"
             })
             .catch(function (error) {
                 alert(error);
             });
+            console.log(resp);
+        }
+        async function setMetadata(){
+            ////////////////////////현재 날짜 구하기 //////////////////
+            var today = new Date();
+            var year = today.getFullYear();
+            var month = ('0' + (today.getMonth() + 1)).slice(-2);
+            var day = ('0' + today.getDate()).slice(-2);
+            var hours = ('0' + today.getHours()).slice(-2); 
+            var minutes = ('0' + today.getMinutes()).slice(-2);
+            var seconds = ('0' + today.getSeconds()).slice(-2); 
+
+            var dateString = year + month + day + hours + minutes + seconds;
+            ////토큰 아이디
+            let token_id = Math.abs(dateString).toString(16);
+            
+            localStorage.setItem('tokenID', token_id);
+            ////생성 시기 스탬프
+            const birth_time = String(today.getTime()/ 1000);
+            //////////////////////////////////////////////////
+            const img = $('.file-upload-image').attr('src');
+            const grade = $('#meat-grade').text();
+            const data = {"grade" : grade,"img": img}
+            const ipfs_data = {"img": img}
+
+            let fat_ratio = localStorage.getItem("fat")==null ? "13.99%" : localStorage.getItem("fat")
+            ///////////////////메타데이터 설정////////////결국 base64 형태는 매우 크기 때문에 klaytn Api Service 에서 자체적으로 벤을 시킨 것이었다.
+            ////////////////////////ipfs 설정 ///////////////////
+            // axios.defaults.withCredentials = true;
+            // const resp = await axios.post('https://ipfs-ika9810.vercel.app/predict',ipfs_data,{withCredentials: true}).then(function (response) {
+            // cosole.log(response.data)});
+
+            let metadata_data = {"metadata": {
+                "description": "Beef NFT는 AI 소고기 등급 판별기를 통해 발행된 NFT로 AI 기반으로 소고기 이미지를 통해 소고기의 등급을 판별한 후 판별된 등급을 NFT에 저장해 인증서를 발급한다.",
+                "external_url": "https://beefnft.me/", 
+                "image": "https://raw.githubusercontent.com/ika9810/Beef-NFT/dev/img/beef.jpeg", 
+                "name": "Beef NFT",
+            
+                "attributes": [{
+                    "display_type": "date",
+                    "trait_type": "Birthday",
+                    "value": String(today.getTime()/ 1000),
+                },
+                {
+                    "trait_type": "grade",
+                    "value": grade
+                },
+                {
+                    "trait_type": "fat",
+                    "value": fat_ratio
+                },]},
+            }
+            const metadata_body = JSON.stringify(metadata_data)
+            //console.log(metadata_body, typeof(metadata_body));
+            let metadata_options = {
+                method: 'POST',
+                url: 'https://metadata-api.klaytnapi.com/v1/metadata',
+                headers: {
+                'Content-Type': 'application/json',
+                'x-chain-id': '1001',
+                Authorization: 'Basic S0FTS0wyQlMxRDFJMUczREowRTdFUDhEOmptd2hlNkZrcXZLLWxheTUxWHJ5QktJVFJPaXE5MUtyRE9OMjFxR0Q='
+                },
+                data: metadata_body
+            };
+            axios.request(metadata_options).then(function (response) {
+                const uri = response.data['uri']
+
+                //localStorage에 URI 저장
+                localStorage.setItem('URI', uri);
+
+            }).catch(function (error) {
+                console.error(error);
+            });
+            // fetch('https://metadata-api.klaytnapi.com/v1/metadata', options)
+            // .then(response => response.json())
+            // .then(response => console.log(response))
+            // .catch(err => console.error(err));
+          
+        }
+        async function autoMint(){
+            $('#nft-loading').show();
+            const uri = localStorage.getItem('URI');
+            const fat = localStorage.getItem("fat");
+            const tokenID = localStorage.getItem("tokenID");
+            console.log(uri,fat,tokenID);
+            let mint_data = {"to" : "0x24b2803c34b11740acd0cc35648e34163c5cba0c","id": '0x' + tokenID, "uri": uri}
+            console.log(mint_data);
+            const mint_options = {
+                method: 'POST',
+                url: 'https://kip17-api.klaytnapi.com/v2/contract/0xe3a390fdb12dafe2eb37d7829d11a18f37e59424/token',
+                headers: {
+                'Content-Type': 'application/json',
+                'x-chain-id': '1001',
+                Authorization: 'Basic S0FTS0wyQlMxRDFJMUczREowRTdFUDhEOmptd2hlNkZrcXZLLWxheTUxWHJ5QktJVFJPaXE5MUtyRE9OMjFxR0Q='
+                },
+                data: JSON.stringify(mint_data)
+            };
+            
+            axios.request(mint_options).then(function (response) {
+                $('#nft-loading').hide();
+                //디버깅을 위한 alert
+                // alert(JSON.stringify(response));
+                console.log(response.data);
+                console.log(response);
+                alert("NFT 발행이 완료되었습니다!");
+                alert("트랜잭션 해쉬값 : " + response["data"]["transactionHash"])
+                window.location.href = "https://baobab.scope.klaytn.com/tx/" + response["data"]["transactionHash"]+ "?tabId=nftTransfer"
+            }).catch(function (error) {
+                console.error(error);
+            });
         }
     </script>
     <script>
-        function test2(){
+        function test(){
             const grade = $('#meat-grade').text();
             console.log(grade);
+            const uri = localStorage.getItem('URI');
+            const fat = localStorage.getItem("fat");
+            console.log(uri,fat);
         }
     </script>
     <script>
@@ -413,6 +598,7 @@
         }
     </script>    
 </body>
+
 <!-- 
 image input box
 Copyright (c) 2020 by Aaron Vanston (https://codepen.io/aaronvanston/pen/yNYOXR)
